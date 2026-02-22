@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum SessionStatus {
+  OPTED_IN
+  ACTIVE
+  COMPLETED
+  EXPIRED
+}
+
+enum JobType {
+  GENERATION
+  EVALUATION
+}
+
+model Syllabus {
+  id          String   @id @default(cuid())
+  subjectName String
+  rawText     String
+  sourceFile  String?
+  createdAt   DateTime @default(now())
+}
+
+model Assessment {
+  id             String   @id @default(cuid())
+  syllabusHash   String   @unique
+  content        Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  sessions       Session[]
+}
+
+model AIJob {
+  id           String      @id @default(cuid())
+  type         JobType
+  status       JobStatus   @default(PENDING)
+  dedupeKey    String?     @unique
+  payload      Json
+  result       Json?
+  errorMessage String?
+  attempts     Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  logs         AIJobAttempt[]
+}
+
+model AIJobAttempt {
+  id        String   @id @default(cuid())
+  jobId     String
+  attempt   Int
+  status    JobStatus
+  error     String?
+  createdAt DateTime @default(now())
+  job       AIJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
+
+model Session {
+  id                  String            @id @default(cuid())
+  userId              String
+  assessmentId        String
+  status              SessionStatus
+  currentSectionIndex Int               @default(0)
+  totalSections       Int
+  startedAt           DateTime?
+  completedAt         DateTime?
+  lastActivityAt      DateTime?
+  createdAt           DateTime          @default(now())
+  assessment          Assessment        @relation(fields: [assessmentId], references: [id])
+  submissions         SectionSubmission[]
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+model SectionSubmission {
+  id           String   @id @default(cuid())
+  sessionId    String
+  sectionId    String
+  sectionIndex Int
+  answers      Json
+  createdAt    DateTime @default(now())
+  session      Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, sectionIndex])
+}
+
+model IdempotencyKey {
+  id         String   @id @default(cuid())
+  scope      String
+  key        String   @unique
+  response   Json
+  createdAt  DateTime @default(now())
+}
