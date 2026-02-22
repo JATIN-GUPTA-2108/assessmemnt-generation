@@ -1,4 +1,4 @@
-import { JobStatus, Prisma, SessionStatus } from "@prisma/client";
+import { JobStatus, JobType, Prisma, SessionStatus } from "@prisma/client";
 import { prisma } from "../config/db";
 import { evaluationQueue } from "../config/queue";
 import { AppError } from "../utils/errors";
@@ -172,7 +172,7 @@ export class SessionService {
         try {
           const evalJob = await tx.aIJob.create({
             data: {
-              type: "EVALUATION",
+              type: JobType.EVALUATION,
               status: JobStatus.PENDING,
               dedupeKey: `evaluation:${sessionId}`,
               payload: { sessionId },

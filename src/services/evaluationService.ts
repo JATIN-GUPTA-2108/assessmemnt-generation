@@ -1,4 +1,4 @@
-import { JobStatus } from "@prisma/client";
+import { JobStatus, Prisma, SessionStatus } from "@prisma/client";
 import { prisma } from "../config/db";
 import { AIService } from "./aiService";
 import { AppError } from "../utils/errors";
@@ -22,7 +22,7 @@ export class EvaluationService {
     });
 
     if (!session) throw new AppError("Session not found", 404);
-    if (session.status !== "COMPLETED") {
+    if (session.status !== SessionStatus.COMPLETED) {
       throw new AppError("Session not completed", 409);
     }
 
@@ -42,7 +42,7 @@ export class EvaluationService {
 
       await tx.aIJob.update({
         where: { id: jobId },
-        data: { status: JobStatus.COMPLETED, result },
+        data: { status: JobStatus.COMPLETED, result: result as Prisma.InputJsonValue },
       });
     });
   }

@@ -1,13 +1,15 @@
-import IORedis from "ioredis";
-import { Queue } from "bullmq";
+import { Queue, type ConnectionOptions } from "bullmq";
 import { env } from "./env";
 
-export const redis = new IORedis(env.REDIS_URL, { maxRetriesPerRequest: null });
+export const redisConnection: ConnectionOptions = {
+  url: env.REDIS_URL,
+  maxRetriesPerRequest: null,
+};
 
 export const generationQueue = new Queue("assessment-generation", {
-  connection: redis,
+  connection: redisConnection,
 });
 
 export const evaluationQueue = new Queue("assessment-evaluation", {
-  connection: redis,
+  connection: redisConnection,
 });

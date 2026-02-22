@@ -35,9 +35,11 @@ export class AssessmentService {
       }
     }
 
-    let job;
+    let jobId: string;
+    let jobStatus: JobStatus;
+
     try {
-      job = await prisma.aIJob.create({
+      const created = await prisma.aIJob.create({
         data: {
           type: JobType.GENERATION,
           status: JobStatus.PENDING,
@@ -45,6 +47,8 @@ export class AssessmentService {
           payload: { syllabusHash },
         },
       });
+      jobId = created.id;
+      jobStatus = created.status;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -60,16 +64,16 @@ export class AssessmentService {
 
     await generationQueue.add(
       "generate-assessment",
-      { jobId: job.id },
+      { jobId },
       {
-        jobId: job.id,
+        jobId,
         attempts: 3,
         backoff: { type: "exponential", delay: 500 },
         removeOnComplete: 100,
       }
     );
 
-    return { jobId: job.id, status: JobStatus.PENDING };
+    return { jobId, status: jobStatus };
   }
 
   async getJob(jobId: string) {

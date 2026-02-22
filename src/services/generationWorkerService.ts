@@ -1,6 +1,6 @@
 import { prisma } from "../config/db";
 import { AIService } from "./aiService";
-import { JobStatus } from "@prisma/client";
+import { JobStatus, Prisma } from "@prisma/client";
 import { AppError } from "../utils/errors";
 
 export class GenerationWorkerService {
@@ -34,11 +34,11 @@ export class GenerationWorkerService {
       syllabi.map((s) => ({ subjectName: s.subjectName, rawText: s.rawText }))
     );
 
-    const created = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       const assessment = await tx.assessment.create({
         data: {
           syllabusHash,
-          content: assessmentJson,
+          content: assessmentJson as Prisma.InputJsonValue,
         },
       });
 
@@ -57,11 +57,7 @@ export class GenerationWorkerService {
           result: { assessmentId: assessment.id },
         },
       });
-
-      return assessment;
     });
-
-    void created;
   }
 
   async markFailed(jobId: string, error: unknown) {

@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import { redis } from "../config/queue";
+import { redisConnection } from "../config/queue";
 import { AIService } from "../services/aiService";
 import { EvaluationService } from "../services/evaluationService";
 import { logger } from "../utils/logger";
@@ -16,7 +16,7 @@ new Worker(
       throw error;
     }
   },
-  { connection: redis }
+  { connection: redisConnection }
 );
 
 logger.info("Evaluation worker started");
