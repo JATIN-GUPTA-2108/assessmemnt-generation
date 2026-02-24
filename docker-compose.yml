@@ -1,16 +1,96 @@
-version: "3.8"
+version: "3.9"
 
 services:
   postgres:
     image: postgres:16
+    container_name: assessment-postgres
     environment:
       POSTGRES_DB: assessment_engine
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d assessment_engine"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   redis:
     image: redis:7
+    container_name: assessment-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: assessment-api
+    command: sh -c "npm run prisma:generate && npm run build && npm run start"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/assessment_engine
+      REDIS_URL: redis://redis:6379
+      PORT: 3000
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gemini-1.5-flash}
+      AI_MAX_RETRIES: ${AI_MAX_RETRIES:-3}
+      AI_INITIAL_BACKOFF_MS: ${AI_INITIAL_BACKOFF_MS:-500}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  generation-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: assessment-generation-worker
+    command: sh -c "npm run prisma:generate && npm run worker:generation"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/assessment_engine
+      REDIS_URL: redis://redis:6379
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gemini-1.5-flash}
+      AI_MAX_RETRIES: ${AI_MAX_RETRIES:-3}
+      AI_INITIAL_BACKOFF_MS: ${AI_INITIAL_BACKOFF_MS:-500}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  evaluation-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: assessment-evaluation-worker
+    command: sh -c "npm run prisma:generate && npm run worker:evaluation"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/assessment_engine
+      REDIS_URL: redis://redis:6379
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gemini-1.5-flash}
+      AI_MAX_RETRIES: ${AI_MAX_RETRIES:-3}
+      AI_INITIAL_BACKOFF_MS: ${AI_INITIAL_BACKOFF_MS:-500}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
